@@ -3,146 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Монитор Операционного Потока (Fixed)</title>
+    <title>Ops Finance Flow (Stable)</title>
     
-    <!-- 1. Стили Tailwind (CDN) -->
+    <!-- 1. Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- 2. React и ReactDOM (CDN Cloudflare - надежнее) -->
-    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <!-- 2. React Core (Загружаем первыми) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
-    <!-- 3. Babel для запуска кода в браузере -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <!-- 3. Prop-types (Нужен для стабильной работы графиков) -->
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
     
-    <!-- 4. Графики Recharts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+    <!-- 4. Recharts (Стабильная версия 2.1.9, которая не ломает UMD) -->
+    <script src="https://unpkg.com/recharts@2.1.9/umd/Recharts.js"></script>
+    
+    <!-- 5. Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
         body { background-color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
         .card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
-        .loading-text { font-size: 1.5rem; color: #64748b; text-align: center; margin-top: 20%; }
-        .error-box { background: #fee2e2; color: #b91c1c; padding: 20px; margin: 20px; border-radius: 8px; border: 1px solid #ef4444; font-family: monospace; }
-        /* Стили кнопок переключения */
         .btn-toggle { transition: all 0.2s; }
         .btn-toggle.active { background-color: #2563eb; color: white; box-shadow: 0 2px 4px rgba(37,99,235,0.2); }
         .btn-toggle.inactive { background-color: white; color: #64748b; border: 1px solid #e2e8f0; }
-        .btn-toggle.inactive:hover { background-color: #f1f5f9; }
+        .loading { display: flex; height: 100vh; justify-content: center; align-items: center; font-size: 1.2rem; color: #64748b; }
     </style>
 </head>
 <body>
 
-    <!-- Контейнер приложения -->
     <div id="root">
-        <div class="loading-text">Загрузка данных...<br><span style="font-size: 1rem; opacity: 0.7;">Подождите пару секунд</span></div>
+        <div class="loading">Запуск системы...</div>
     </div>
 
-    <!-- Блок для отображения ошибок, если React упадет -->
-    <div id="error-display" style="display: none;"></div>
-
-    <!-- Скрипт перехвата ошибок при запуске -->
-    <script>
-        window.onerror = function(message, source, lineno, colno, error) {
-            document.getElementById('root').style.display = 'none';
-            const errDiv = document.getElementById('error-display');
-            errDiv.style.display = 'block';
-            errDiv.className = 'error-box';
-            errDiv.innerHTML = `<strong>Ошибка запуска:</strong><br>${message}<br><br><small>${source}:${lineno}</small>`;
-        };
-    </script>
-
     <script type="text/babel">
-        // Безопасная инициализация переменных
-        const { useState, useMemo, useEffect } = React;
-        const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } = window.Recharts || {};
-
-        if (!window.Recharts) {
-            throw new Error("Библиотека Recharts не загрузилась. Проверьте подключение к интернету.");
+        // --- ПРОВЕРКА ЗАГРУЗКИ БИБЛИОТЕК ---
+        if (!window.React || !window.Recharts) {
+            document.getElementById('root').innerHTML = '<div style="color:red; text-align:center; margin-top:50px;">Ошибка: Библиотеки не загрузились. Проверьте VPN или соединение.</div>';
+            throw new Error("Libs not loaded");
         }
+
+        const { useState, useMemo } = React;
+        const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } = Recharts;
 
         // --- ГЕНЕРАЦИЯ ДАННЫХ ---
         const generateData = () => {
-            const clients = ['ООО "Вектор"', 'ИП Смирнов', 'ЗАО "ТоргСнаб"', 'Ресторан "У Озера"', 'Магазин "Продукты"', 'ООО "Альянс"', 'Сеть "Копейка"'];
             const data = [];
-            const statuses = ['Delivered', 'Delivered', 'Delivered', 'OutOfStock', 'NotAssembled', 'NotShipped', 'Returned'];
+            const statuses = ['Delivered', 'Delivered', 'OutOfStock', 'NotAssembled', 'NotShipped', 'Returned'];
             
-            for (let i = 0; i < 60; i++) {
+            for (let i = 0; i < 50; i++) {
                 data.push({
-                    id: `ZAK-${2024001 + i}`,
-                    client: clients[Math.floor(Math.random() * clients.length)],
-                    status: i < 35 ? 'Delivered' : statuses[Math.floor(Math.random() * statuses.length)],
-                    rub: Math.floor(Math.random() * 15000) + 3000,
-                    kg: Math.floor(Math.random() * 120) + 10,
-                    boxes: Math.floor(Math.random() * 20) + 2,
+                    id: `ORD-${3000 + i}`,
+                    client: `Клиент ${String.fromCharCode(65 + (i % 5))}`,
+                    status: i < 30 ? 'Delivered' : statuses[Math.floor(Math.random() * statuses.length)],
+                    rub: Math.floor(Math.random() * 10000) + 2000,
+                    kg: Math.floor(Math.random() * 80) + 5,
+                    boxes: Math.floor(Math.random() * 15) + 1,
                     points: 1
                 });
             }
             return data;
         };
-
         const RAW_DATA = generateData();
 
         // --- ПРИЛОЖЕНИЕ ---
         const App = () => {
             const [unit, setUnit] = useState('rub'); // rub, kg, boxes, points
-            const [mounted, setMounted] = useState(false);
 
-            useEffect(() => {
-                setMounted(true); // Убедимся, что рендер идет на клиенте
-            }, []);
-
-            // Форматтер
             const formatValue = (val, type = unit) => {
                 if (type === 'rub') return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(val);
-                if (type === 'kg') return `${val.toLocaleString('ru-RU')} кг`;
-                if (type === 'boxes') return `${val.toLocaleString('ru-RU')} кор.`;
+                if (type === 'kg') return `${val} кг`;
+                if (type === 'boxes') return `${val} кор.`;
                 if (type === 'points') return `${val} ТТ`;
                 return val;
             };
 
-            // Агрегация метрик
             const metrics = useMemo(() => {
-                const totalDemand = RAW_DATA.reduce((acc, i) => acc + i[unit], 0);
-                const lossOOS = RAW_DATA.filter(i => i.status === 'OutOfStock').reduce((acc, i) => acc + i[unit], 0);
-                const lossWhs = RAW_DATA.filter(i => i.status === 'NotAssembled').reduce((acc, i) => acc + i[unit], 0);
-                const lossLog = RAW_DATA.filter(i => i.status === 'NotShipped').reduce((acc, i) => acc + i[unit], 0);
-                const lossRet = RAW_DATA.filter(i => i.status === 'Returned').reduce((acc, i) => acc + i[unit], 0);
-                const fact = RAW_DATA.filter(i => i.status === 'Delivered').reduce((acc, i) => acc + i[unit], 0);
-
-                return { totalDemand, lossOOS, lossWhs, lossLog, lossRet, fact };
+                const total = RAW_DATA.reduce((acc, i) => acc + i[unit], 0);
+                const delivered = RAW_DATA.filter(i => i.status === 'Delivered').reduce((acc, i) => acc + i[unit], 0);
+                const lostOOS = RAW_DATA.filter(i => i.status === 'OutOfStock').reduce((acc, i) => acc + i[unit], 0);
+                const lostWhs = RAW_DATA.filter(i => i.status === 'NotAssembled').reduce((acc, i) => acc + i[unit], 0);
+                const lostLog = RAW_DATA.filter(i => i.status === 'NotShipped').reduce((acc, i) => acc + i[unit], 0);
+                const lostRet = RAW_DATA.filter(i => i.status === 'Returned').reduce((acc, i) => acc + i[unit], 0);
+                
+                return { total, delivered, lostOOS, lostWhs, lostLog, lostRet };
             }, [unit]);
 
-            // Данные для графика
             const chartData = [
-                { name: '1. Спрос', value: metrics.totalDemand, color: '#3b82f6' },
-                { name: 'Нет товара', value: metrics.lossOOS, color: '#ef4444' },
-                { name: 'Не собрано', value: metrics.lossWhs, color: '#f97316' },
-                { name: 'Не отгружено', value: metrics.lossLog, color: '#eab308' },
-                { name: 'Возврат', value: metrics.lossRet, color: '#64748b' },
-                { name: '5. Факт', value: metrics.fact, color: '#22c55e' }
+                { name: 'Спрос', value: metrics.total, fill: '#3b82f6' },
+                { name: 'Нет товара', value: metrics.lostOOS, fill: '#ef4444' },
+                { name: 'Не собрано', value: metrics.lostWhs, fill: '#f97316' },
+                { name: 'Не отгружено', value: metrics.lostLog, fill: '#eab308' },
+                { name: 'Возврат', value: metrics.lostRet, fill: '#64748b' },
+                { name: 'Факт', value: metrics.delivered, fill: '#22c55e' }
             ];
 
-            if (!mounted) return null;
-
             return (
-                <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto pb-20">
+                <div className="min-h-screen p-4 max-w-7xl mx-auto pb-20">
                     {/* Header */}
-                    <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <header className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold text-slate-800">Ops Finance Flow</h1>
-                            <p className="text-slate-500 mt-1">Суточный цикл заказов</p>
+                            <h1 className="text-2xl font-bold text-slate-800">Ops Finance Flow</h1>
+                            <p className="text-slate-500 text-sm">Суточный монитор v3.0 (Stable)</p>
                         </div>
-                        <div className="flex bg-white rounded-xl p-1.5 shadow-sm border border-slate-200">
+                        <div className="flex bg-white rounded-lg border p-1">
                             {[
-                                { id: 'rub', label: 'Рубли ₽' },
-                                { id: 'kg', label: 'Вес КГ' },
-                                { id: 'boxes', label: 'Места 📦' },
-                                { id: 'points', label: 'Точки 📍' }
-                            ].map((u) => (
+                                { id: 'rub', label: 'Рубли' },
+                                { id: 'kg', label: 'Вес' },
+                                { id: 'boxes', label: 'Места' },
+                                { id: 'points', label: 'Точки' }
+                            ].map(u => (
                                 <button
                                     key={u.id}
                                     onClick={() => setUnit(u.id)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-semibold btn-toggle ${unit === u.id ? 'active' : 'inactive'}`}
+                                    className={`px-3 py-1.5 text-sm rounded-md font-medium btn-toggle ${unit === u.id ? 'active' : 'inactive'}`}
                                 >
                                     {u.label}
                                 </button>
@@ -151,132 +125,116 @@
                     </header>
 
                     {/* KPI Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <MetricCard title="План (Вчера)" value={metrics.totalDemand} unit={unit} fmt={formatValue} />
-                        <MetricCard title="Потери Склада" value={metrics.lossWhs + metrics.lossOOS} unit={unit} fmt={formatValue} isLoss />
-                        <MetricCard title="Потери Логистики" value={metrics.lossLog + metrics.lossRet} unit={unit} fmt={formatValue} isLoss />
-                        <MetricCard title="Факт (Сегодня)" value={metrics.fact} unit={unit} fmt={formatValue} isSuccess />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                        <Card title="План (Вчера)" val={metrics.total} fmt={formatValue} />
+                        <Card title="Потери Склада" val={metrics.lostWhs + metrics.lostOOS} fmt={formatValue} isBad />
+                        <Card title="Потери Логистики" val={metrics.lostLog + metrics.lostRet} fmt={formatValue} isBad />
+                        <Card title="Факт (Сегодня)" val={metrics.delivered} fmt={formatValue} isGood />
                     </div>
 
-                    {/* Chart & Tables */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                        <div className="card p-6 lg:col-span-2 min-h-[400px]">
-                            <h3 className="text-lg font-bold text-slate-700 mb-4">Воронка потерь</h3>
-                            <div style={{ width: '100%', height: 300 }}>
-                                <ResponsiveContainer>
-                                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                        <XAxis dataKey="name" tick={{fontSize: 12}} interval={0} />
-                                        <YAxis tickFormatter={(v) => v >= 1000 ? (v/1000).toFixed(0) + 'k' : v} />
-                                        <Tooltip 
-                                            cursor={{fill: '#f1f5f9'}}
-                                            content={({ active, payload }) => {
-                                                if (active && payload && payload.length) {
-                                                    const d = payload[0].payload;
-                                                    return (
-                                                        <div className="bg-white p-3 shadow-lg rounded border">
-                                                            <p className="font-bold">{d.name}</p>
-                                                            <p className="text-blue-600 font-bold">{formatValue(d.value)}</p>
-                                                        </div>
-                                                    );
-                                                }
-                                                return null;
-                                            }}
-                                        />
-                                        <Bar dataKey="value">
-                                            {chartData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
+                    {/* Main Chart */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                        <div className="card p-4 lg:col-span-2 min-h-[350px]">
+                            <h3 className="font-bold text-slate-700 mb-4">Воронка исполнения</h3>
+                            <ResponsiveContainer width="100%" height={300}>
+                                <BarChart data={chartData}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="name" tick={{fontSize: 12}} />
+                                    <YAxis tickFormatter={v => v > 999 ? (v/1000).toFixed(0) + 'k' : v} />
+                                    <Tooltip 
+                                        cursor={{fill: '#f8fafc'}}
+                                        content={({ active, payload }) => {
+                                            if (active && payload && payload.length) {
+                                                return (
+                                                    <div className="bg-white p-2 border rounded shadow">
+                                                        <span className="font-bold">{payload[0].payload.name}: </span>
+                                                        <span className="text-blue-600 font-mono">{formatValue(payload[0].value)}</span>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        }}
+                                    />
+                                    <Bar dataKey="value" />
+                                </BarChart>
+                            </ResponsiveContainer>
                         </div>
 
+                        {/* Side Stats */}
                         <div className="flex flex-col gap-4">
-                            <div className="card p-5 border-l-4 border-orange-500">
-                                <h3 className="font-bold text-slate-700 mb-2">📦 Склад (Сборка)</h3>
-                                <KpiRow label="Скорость" val="145/час" status="warn" />
-                                <KpiRow label="Готовность" val="98.5%" status="ok" />
-                                <KpiRow label="Нет товара" val="2.1%" status="bad" />
+                            <div className="card p-4 border-l-4 border-orange-400">
+                                <h3 className="font-bold text-slate-700 mb-2">📦 Склад</h3>
+                                <div className="space-y-3">
+                                    <Row label="Скорость" val="145/час" />
+                                    <Row label="Готовность" val="98%" color="text-green-600" />
+                                    <Row label="Нет товара" val="2.4%" color="text-red-600" />
+                                </div>
                             </div>
-                            <div className="card p-5 border-l-4 border-yellow-500">
+                            <div className="card p-4 border-l-4 border-yellow-400">
                                 <h3 className="font-bold text-slate-700 mb-2">🚚 Логистика</h3>
-                                <KpiRow label="Загрузка" val="92%" status="ok" />
-                                <KpiRow label="Ср. дроп" val="52 кг" status="ok" />
-                                <KpiRow label="Возвраты" val="3.4%" status="warn" />
+                                <div className="space-y-3">
+                                    <Row label="Загрузка" val="92%" />
+                                    <Row label="Средний дроп" val="52 кг" />
+                                    <Row label="Возвраты" val="3.1%" color="text-red-600" />
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                     {/* Drill Down Table */}
-                     <div className="card overflow-hidden">
-                        <div className="p-4 border-b bg-gray-50">
-                            <h3 className="font-bold text-gray-700">Детализация сбоев</h3>
-                        </div>
+                    {/* Table */}
+                    <div className="card overflow-hidden">
+                        <div className="px-6 py-4 border-b bg-gray-50 font-bold text-slate-700">Проблемные заказы</div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
-                                <thead className="text-gray-500 bg-gray-50 border-b">
+                                <thead className="text-gray-500 border-b bg-white">
                                     <tr>
-                                        <th className="px-6 py-3">Заказ</th>
+                                        <th className="px-6 py-3">ID</th>
                                         <th className="px-6 py-3">Статус</th>
-                                        <th className="px-6 py-3 text-right">Потери</th>
+                                        <th className="px-6 py-3 text-right">Потеря</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {RAW_DATA.filter(i => i.status !== 'Delivered').slice(0, 5).map(row => (
-                                        <tr key={row.id} className="border-b hover:bg-gray-50">
-                                            <td className="px-6 py-3 font-medium">{row.id} <span className="text-gray-400 block text-xs">{row.client}</span></td>
-                                            <td className="px-6 py-3"><StatusBadge status={row.status} /></td>
-                                            <td className="px-6 py-3 text-right text-red-600 font-mono">{formatValue(row[unit])}</td>
+                                    {RAW_DATA.filter(x => x.status !== 'Delivered').slice(0,5).map(r => (
+                                        <tr key={r.id} className="border-b hover:bg-gray-50">
+                                            <td className="px-6 py-3 font-mono">{r.id}</td>
+                                            <td className="px-6 py-3">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                                    r.status==='OutOfStock' ? 'bg-red-100 text-red-800' :
+                                                    r.status==='NotAssembled' ? 'bg-orange-100 text-orange-800' :
+                                                    'bg-yellow-100 text-yellow-800'
+                                                }`}>{r.status}</span>
+                                            </td>
+                                            <td className="px-6 py-3 text-right font-mono text-red-600">{formatValue(r[unit])}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
                     </div>
-
-                    <footer className="mt-12 text-center text-slate-400 text-xs">
-                        Ops Finance Flow v2.2 | Powered by React
-                    </footer>
+                    
+                    <div className="text-center text-gray-400 mt-8 text-xs">v3.0 Stable Build</div>
                 </div>
             );
         };
 
-        // UI Components
-        const MetricCard = ({ title, value, unit, fmt, isLoss, isSuccess }) => (
-            <div className="card p-5 relative overflow-hidden">
-                <p className="text-slate-500 text-sm font-medium">{title}</p>
-                <div className={`text-2xl font-bold mt-2 ${isLoss ? 'text-red-600' : isSuccess ? 'text-green-600' : 'text-slate-800'}`}>
-                    {isLoss && value > 0 ? '-' : ''}{fmt(value, unit)}
+        const Card = ({ title, val, fmt, isBad, isGood }) => (
+            <div className="card p-4">
+                <div className="text-gray-500 text-xs uppercase font-bold mb-1">{title}</div>
+                <div className={`text-xl font-bold ${isBad ? 'text-red-600' : isGood ? 'text-green-600' : 'text-slate-800'}`}>
+                    {fmt(val)}
                 </div>
             </div>
         );
 
-        const KpiRow = ({ label, val, status }) => {
-            const color = status === 'ok' ? 'text-green-700 bg-green-100' : status === 'warn' ? 'text-yellow-700 bg-yellow-100' : 'text-red-700 bg-red-100';
-            return (
-                <div className="flex justify-between items-center py-2 border-b last:border-0 border-slate-100">
-                    <span className="text-sm text-slate-600">{label}</span>
-                    <span className={`px-2 py-0.5 rounded text-sm font-bold ${color}`}>{val}</span>
-                </div>
-            );
-        };
+        const Row = ({ label, val, color = 'text-slate-800' }) => (
+            <div className="flex justify-between text-sm">
+                <span className="text-slate-500">{label}</span>
+                <span className={`font-bold ${color}`}>{val}</span>
+            </div>
+        );
 
-        const StatusBadge = ({ status }) => {
-            const map = {
-                'OutOfStock': { bg: 'bg-red-100', txt: 'text-red-800', lbl: 'Нет товара' },
-                'NotAssembled': { bg: 'bg-orange-100', txt: 'text-orange-800', lbl: 'Не собрано' },
-                'NotShipped': { bg: 'bg-yellow-100', txt: 'text-yellow-800', lbl: 'Не влезло' },
-                'Returned': { bg: 'bg-slate-100', txt: 'text-slate-800', lbl: 'Возврат' }
-            };
-            const s = map[status] || { bg: 'bg-gray-100', txt: 'text-gray-800', lbl: status };
-            return <span className={`px-2 py-1 rounded-full text-xs font-bold ${s.bg} ${s.txt}`}>{s.lbl}</span>;
-        };
-
-        // Запуск
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
+
