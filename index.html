@@ -4,18 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Монитор Операционного Потока</title>
-    <!-- Tailwind CSS -->
+    <!-- Подключение стилей и библиотек (работает без установки) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Recharts for Charts -->
     <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-
+    
     <style>
         body { background-color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
         .card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
@@ -26,24 +21,26 @@
     </style>
 </head>
 <body>
+    <!-- Сюда React отрендерит приложение -->
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useMemo } = React;
-        const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } = Recharts;
+        const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } = Recharts;
 
-        // --- Генерация тестовых данных (Русский язык) ---
+        // --- ГЕНЕРАЦИЯ ДАННЫХ (Симуляция вашей базы) ---
         const generateData = () => {
             const clients = ['ООО "Вектор"', 'ИП Смирнов', 'ЗАО "ТоргСнаб"', 'Ресторан "У Озера"', 'Магазин "Продукты"', 'ООО "Альянс"', 'Сеть "Копейка"'];
             const data = [];
-            // Статусы: Created (Спрос), OutOfStock (Нет товара), NotAssembled (Не собрано), NotShipped (Не отгружено), Returned (Возврат), Delivered (Доставлено)
+            // Статусы проблем для имитации
             const statuses = ['Delivered', 'Delivered', 'Delivered', 'OutOfStock', 'NotAssembled', 'NotShipped', 'Returned'];
-
+            
             for (let i = 0; i < 60; i++) {
                 data.push({
                     id: `ZAK-${2024001 + i}`,
                     client: clients[Math.floor(Math.random() * clients.length)],
-                    status: i < 40 ? 'Delivered' : statuses[Math.floor(Math.random() * statuses.length)],
+                    // 60% заказов успешны, остальные имеют случайный статус
+                    status: i < 35 ? 'Delivered' : statuses[Math.floor(Math.random() * statuses.length)],
                     rub: Math.floor(Math.random() * 15000) + 3000,
                     kg: Math.floor(Math.random() * 120) + 10,
                     boxes: Math.floor(Math.random() * 20) + 2,
@@ -55,10 +52,11 @@
 
         const RAW_DATA = generateData();
 
+        // --- ГЛАВНОЕ ПРИЛОЖЕНИЕ ---
         const App = () => {
-            const [unit, setUnit] = useState('rub'); // rub, kg, boxes, points
+            const [unit, setUnit] = useState('rub'); // Текущая единица измерения: rub, kg, boxes, points
 
-            // --- Форматирование ---
+            // Форматтер чисел (добавляет ₽, кг и т.д.)
             const formatValue = (val, type = unit) => {
                 if (type === 'rub') return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(val);
                 if (type === 'kg') return `${val.toLocaleString('ru-RU')} кг`;
@@ -67,11 +65,10 @@
                 return val;
             };
 
-            // --- Агрегация данных ---
+            // Расчет метрик (Агрегация)
             const metrics = useMemo(() => {
                 const totalDemand = RAW_DATA.reduce((acc, i) => acc + i[unit], 0);
-
-                // Фильтрация потерь
+                
                 const lossOOS = RAW_DATA.filter(i => i.status === 'OutOfStock').reduce((acc, i) => acc + i[unit], 0);
                 const lossWhs = RAW_DATA.filter(i => i.status === 'NotAssembled').reduce((acc, i) => acc + i[unit], 0);
                 const lossLog = RAW_DATA.filter(i => i.status === 'NotShipped').reduce((acc, i) => acc + i[unit], 0);
@@ -81,14 +78,14 @@
                 return { totalDemand, lossOOS, lossWhs, lossLog, lossRet, fact };
             }, [unit]);
 
-            // Данные для графика-моста
+            // Данные для Графика-Водопада
             const chartData = [
-                { name: 'Спрос (Вчера)', value: metrics.totalDemand, type: 'start', color: '#3b82f6' },
+                { name: '1. Спрос (Вчера)', value: metrics.totalDemand, type: 'start', color: '#3b82f6' },
                 { name: 'Нет товара', value: metrics.lossOOS, type: 'loss', color: '#ef4444' },
                 { name: 'Не собрано', value: metrics.lossWhs, type: 'loss', color: '#f97316' },
                 { name: 'Не влезло', value: metrics.lossLog, type: 'loss', color: '#eab308' },
                 { name: 'Возврат', value: metrics.lossRet, type: 'loss', color: '#64748b' },
-                { name: 'Факт (Сегодня)', value: metrics.fact, type: 'end', color: '#22c55e' }
+                { name: '5. Факт (Сегодня)', value: metrics.fact, type: 'end', color: '#22c55e' }
             ];
 
             return (
@@ -99,7 +96,7 @@
                             <h1 className="text-3xl font-bold text-slate-800">Монитор Выполнения Заказов</h1>
                             <p className="text-slate-500 mt-1">Анализ суточного цикла: Вчера (Заказ) → Сегодня (Доставка)</p>
                         </div>
-
+                        
                         {/* Переключатель единиц */}
                         <div className="flex bg-white rounded-xl p-1.5 shadow-sm border border-slate-200">
                             {[
@@ -119,7 +116,7 @@
                         </div>
                     </header>
 
-                    {/* Верхние карточки (Сводка) */}
+                    {/* Верхние карточки (KPI) */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                         <MetricCard title="План (Спрос)" value={metrics.totalDemand} unit={unit} fmt={formatValue} icon="📋" />
                         <MetricCard title="Потери Склада" value={metrics.lossWhs + metrics.lossOOS} unit={unit} fmt={formatValue} isLoss />
@@ -127,14 +124,14 @@
                         <MetricCard title="Факт (В кассе)" value={metrics.fact} unit={unit} fmt={formatValue} isSuccess />
                     </div>
 
-                    {/* Основной блок */}
+                    {/* Основной контент */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-
+                        
                         {/* График Водопад */}
                         <div className="card p-6 lg:col-span-2">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-lg font-bold text-slate-700">Анализ причин потерь (Воронка)</h3>
-                                <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded">Обновлено: 18:00</span>
+                                <h3 className="text-lg font-bold text-slate-700">Воронка потерь (Bridge Analysis)</h3>
+                                <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded">Обновлено: {new Date().toLocaleTimeString().slice(0,5)}</span>
                             </div>
                             <div className="h-80 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -169,7 +166,7 @@
                             </div>
                         </div>
 
-                        {/* KPI Панели */}
+                        {/* Панели Отделов */}
                         <div className="flex flex-col gap-4">
                             {/* Склад */}
                             <div className="card p-5 border-l-4 border-orange-500">
@@ -199,7 +196,7 @@
                         </div>
                     </div>
 
-                    {/* Детализация (Таблица) */}
+                    {/* Таблица Детализации */}
                     <div className="card overflow-hidden">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                             <h3 className="font-bold text-slate-700">Проблемные заказы (Топ-5)</h3>
@@ -237,14 +234,14 @@
                     </div>
 
                     <footer className="mt-8 text-center text-slate-400 text-xs pb-8">
-                        Система Ops Finance Flow | Версия 2.1 RU | Данные обновлены: {new Date().toLocaleDateString()}
+                        Система Ops Finance Flow | Версия 2.1 RU
                     </footer>
                 </div>
             );
         };
 
-        // --- Компоненты UI ---
-
+        // --- ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ---
+        
         const MetricCard = ({ title, value, unit, fmt, isLoss, isSuccess, icon }) => (
             <div className="card p-5 flex flex-col justify-between h-full relative overflow-hidden">
                 <div className="flex justify-between items-start z-10">
@@ -254,6 +251,7 @@
                 <div className={`text-2xl font-bold mt-2 z-10 ${isLoss ? 'text-red-600' : isSuccess ? 'text-green-600' : 'text-slate-800'}`}>
                     {isLoss && value > 0 ? '-' : ''}{fmt(value, unit)}
                 </div>
+                {/* Фоновые декорации */}
                 {isLoss && <div className="absolute right-0 bottom-0 h-16 w-16 bg-red-50 rounded-tl-full opacity-50" />}
                 {isSuccess && <div className="absolute right-0 bottom-0 h-16 w-16 bg-green-50 rounded-tl-full opacity-50" />}
             </div>
@@ -293,6 +291,7 @@
             );
         };
 
+        // Рендер приложения
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
